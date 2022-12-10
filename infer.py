@@ -16,7 +16,7 @@ category_index = label_map_util.create_category_index_from_labelmap(r'.\labels\l
 #detection_model = tf.saved_model.load(str(r".\models\person\saved_model"))
 detection_model = tf.saved_model.load(str(r".\models\BACKUP\saved_model"))
 #CHANGE WHICH VIDEO TO USE HERE
-videoTitle = "testpikachu.mp4"
+videoTitle = "cursed.mp4"
 
 def run_inference_for_single_image(model, image):
   image = np.asarray(image)
@@ -79,7 +79,9 @@ result = cv2.VideoWriter(resultString,
                          10, size)
                          
 while 1:
-    _,img = cap.read()
+    ret,img = cap.read()
+    if ret == False:
+        break
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     final_img = show_inference(detection_model, img)
     final_img = cv2.cvtColor(final_img, cv2.COLOR_RGB2BGR)
