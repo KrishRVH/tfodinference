@@ -1,0 +1,4 @@
+[tasks.infer]
+description = "Run TensorFlow Object Detection video inference"
+depends = ["py:install"]
+run = "uv run tfodinference"

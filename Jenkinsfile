@@ -1,21 +1,15 @@
-Jenkinsfile (Declarative Pipeline)
 pipeline {
     agent any
 
     stages {
-        stage('Build') {
+        stage('Install') {
             steps {
-                echo 'Building..'
+                sh 'mise run install'
             }
         }
-        stage('Test') {
+        stage('Check') {
             steps {
-                echo 'Testing..'
-            }
-        }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying....'
+                sh 'mise run standards:check'
             }
         }
     }

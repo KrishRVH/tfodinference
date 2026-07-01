@@ -1,0 +1,188 @@
+[tools]
+python = "3.13.14"
+uv = "0.11.23"
+
+[tasks."py:install"]
+description = "Install Python dependencies"
+run = """
+if [ ! -f pyproject.toml ]; then
+  echo "No pyproject.toml found."
+  exit 0
+fi
+
+if [ -f uv.lock ]; then
+  uv sync --locked
+else
+  uv sync
+fi
+"""
+
+[tasks."py:install:deep"]
+description = "Install Python dependencies including optional deep analyzers"
+run = """
+if [ ! -f pyproject.toml ]; then
+  echo "No pyproject.toml found."
+  exit 0
+fi
+
+if [ -f uv.lock ]; then
+  uv sync --group deep --locked
+else
+  uv sync --group deep
+fi
+"""
+
+[tasks."py:lock"]
+description = "Refresh the uv lockfile"
+run = "uv lock"
+
+[tasks."py:lock:check"]
+description = "Ensure the uv lockfile is present and current"
+run = """
+if [ ! -f uv.lock ]; then
+  echo "uv.lock is required for Python CI. Run mise run py:lock and commit the generated lockfile." >&2
+  exit 1
+fi
+
+uv lock --check
+"""
+
+[tasks."py:fmt"]
+description = "Format Python source and tests"
+depends = ["py:install"]
+run = "uv run ruff format ."
+
+[tasks."py:fmt:check"]
+description = "Check Python formatting"
+depends = ["py:install"]
+run = "uv run ruff format --check ."
+
+[tasks."py:ruff"]
+description = "Run Ruff lint rules"
+depends = ["py:install"]
+run = "uv run ruff check ."
+
+[tasks."py:type"]
+description = "Run strict Python type analysis"
+depends = ["py:install"]
+run = "uv run basedpyright --warnings"
+
+[tasks."py:type:mypy"]
+description = "Run optional strict mypy analysis"
+depends = ["py:install:deep"]
+run = "uv run --no-sync mypy"
+
+[tasks."py:deps"]
+description = "Check Python dependency hygiene"
+depends = ["py:install:deep"]
+run = "uv run --no-sync deptry ."
+
+[tasks."py:docs"]
+description = "Report Python docstring coverage"
+depends = ["py:install:deep"]
+run = "uv run --no-sync interrogate --fail-under=0 ."
+
+[tasks."py:complexity"]
+description = "Check Python complexity budgets"
+depends = ["py:install:deep"]
+run = """
+paths=""
+[ -d src ] && paths="$paths src"
+[ -d tests ] && paths="$paths tests"
+
+if [ -z "$paths" ]; then
+  echo "No src or tests directories found; skipping xenon."
+else
+  uv run --no-sync xenon --max-absolute B --max-modules A --max-average A $paths
+fi
+"""
+
+[tasks."py:slots"]
+description = "Check dataclass slot coverage"
+depends = ["py:install:deep"]
+run = """
+if [ ! -d src ]; then
+  echo "No src directory found; skipping slotscheck."
+  exit 0
+fi
+
+uv run --no-sync slotscheck src
+"""
+
+[tasks."py:security"]
+description = "Run Python security analysis"
+depends = ["py:install"]
+run = """
+if [ -d src ]; then
+  uv run bandit -c pyproject.toml -r src
+else
+  echo "No src directory found; skipping bandit."
+fi
+"""
+
+[tasks."py:audit"]
+description = "Audit Python dependencies"
+depends = ["py:install"]
+run = "uv audit --preview-features audit-command --locked"
+
+[tasks."py:deadcode"]
+description = "Check for high-confidence dead Python code"
+depends = ["py:install:deep"]
+run = "uv run --no-sync vulture"
+
+[tasks."py:lint"]
+description = "Run default Python static analysis"
+depends = ["py:install"]
+run = """
+mise run py:ruff
+mise run py:type
+mise run py:security
+"""
+
+[tasks."py:deep"]
+description = "Run optional dependency-sensitive Python analysis"
+depends = ["py:install:deep"]
+run = """
+mise run py:type:mypy
+mise run py:deps
+mise run py:docs
+mise run py:complexity
+mise run py:slots
+mise run py:deadcode
+"""
+
+[tasks."py:test"]
+description = "Run Python tests with branch coverage"
+depends = ["py:install"]
+run = "uv run pytest"
+
+[tasks."py:build"]
+description = "Build Python source and wheel distributions"
+depends = ["py:install"]
+run = "uv build"
+
+[tasks."py:standards"]
+description = "Run the Python standards workflow with autofixes"
+depends = ["py:install"]
+run = """
+uv run ruff check --fix .
+uv run ruff format .
+"""
+
+[tasks."py:standards:check"]
+description = "Run the Python standards CI gate"
+run = """
+mise run py:lock:check
+mise run py:fmt:check
+mise run py:lint
+mise run py:test
+mise run py:build
+mise run py:audit
+"""
+
+[tasks."py:standards:check:deep"]
+description = "Run the Python standards CI gate plus optional deep analysis"
+run = """
+mise run py:standards:check
+mise run py:deep
+"""
